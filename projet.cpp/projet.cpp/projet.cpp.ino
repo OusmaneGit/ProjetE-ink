@@ -6,7 +6,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-
+//new API
+#include <Arduino_JSON.h>
 //Since there are multiple versions of the screen, if there is a flower screen after downloading the program, please test the following four header files again!
 //#include <GxDEPG0213BN/GxDEPG0213BN.h>
 //#include <GxGDE0213B1/GxGDE0213B1.h>      // 2.13" b/w
@@ -40,7 +41,7 @@ int bmpWidth = 232, bmpHeight = 52;
 #define SDCARD_MISO 2
 
 #define BUTTON_PIN 39
-
+//end of imports 
 
 GxIO_Class io(SPI, /*CS=5*/ ELINK_SS, /*DC=*/ ELINK_DC, /*RST=*/ ELINK_RESET);
 GxEPD_Class display(io, /*RST=*/ ELINK_RESET, /*BUSY=*/ ELINK_BUSY);
@@ -48,9 +49,12 @@ GxEPD_Class display(io, /*RST=*/ ELINK_RESET, /*BUSY=*/ ELINK_BUSY);
 SPIClass sdSPI(VSPI);
 
 //Provide your own WiFi credentials
-const char* ssid = "LARAS";//Proximus-Home-84B0   LARAS
-const char* password = "wifi4guest";//w2eyafdmrh3re   wifi4guest
+const char* ssid = "Proximus-Home-84B0";//Proximus-Home-84B0   LARAS
+const char* password = "w2eyafdmrh3re";//w2eyafdmrh3re   wifi4guest
 //String for storing server response
+
+const uint8_t Whiteboard[1700] = {0x00};
+
 String response = "";
 //JSON document
 DynamicJsonDocument doc(2048);
@@ -59,6 +63,29 @@ const char *Website = "Test API";
 bool sdOK = false;
 int startX = 9, startY = 20;
 
+
+//Wheather API
+// Your Domain name with URL path or IP address with path
+String openWeatherMapApiKey = "b8890bd0a9fe6b0bccc79b716cbdcd2f";
+// Example:
+//String openWeatherMapApiKey = "bd939aa3d23ff33d3c8f5dd1dd435";
+
+// Replace with your country code and city
+String city = "BRUXELLES";
+String countryCode = "BXL";
+
+// THE DEFAULT TIMER IS SET TO 10 SECONDS FOR TESTING PURPOSES
+// For a final application, check the API call limits per hour/minute to avoid getting blocked/banned
+unsigned long lastTime = 0;
+// Timer set to 10 minutes (600000)
+//unsigned long timerDelay = 600000;
+// Set timer to 10 seconds (10000)
+unsigned long timerDelay = 10000;
+
+String jsonBuffer;
+
+
+//end of whether API
 void setup()
 {
   //For displaying the joke on Serial Monitor
@@ -76,11 +103,15 @@ void setup()
   Serial.print("WiFi connected with IP: ");
   display.println(WiFi.localIP());
   //
-
+ 
+//
 //Initiate HTTP client
   HTTPClient http;
   //The API URL
-  String request = "https://api.chucknorris.io/jokes/random";
+  //String request = "https://api.chucknorris.io/jokes/random";
+  //
+   String request = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey;
+
   //Start the request
   http.begin(request);
   //Use HTTP GET request
@@ -95,7 +126,7 @@ void setup()
      return;
   }
   //Print parsed value on Serial Monitor
-  Serial.println(doc["value"].as<char*>());
+  //Serial.println(doc["value"].as<char*>());
   //Close connection  
   http.end();
   //Wait two seconds for next joke
@@ -115,8 +146,8 @@ void setup()
   //
   display.fillScreen(GxEPD_WHITE);
   display.setTextColor(GxEPD_BLACK);
-  //display.setFont(&FreeMonoBold12pt7b);
-  //display.setCursor(0, 0);
+  display.setFont(&FreeMonoBold12pt7b);
+  display.setCursor(0, 0);
 
   sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
 
@@ -128,17 +159,19 @@ void setup()
 
   
 
-  
-
+ 
   //display.drawBitmap(DFRobot, startX, startY,  bmpWidth, bmpHeight, GxEPD_BLACK);
 
   //display.setCursor(16,60);
-
+  display.setCursor(20,95);
   delay(2000);
   display.fillScreen(GxEPD_WHITE);
-  display.println(doc["value"].as<char*>());
-
-  //display.setTextColor(GxEPD_BLACK);
+  //display.println(doc["value"].as<char*>());
+  display.print("Temp BXL:");
+  display.print(doc["main"]["temp"].as<float>()-273.15 );
+  display.print(" °C ");
+  //["main"]["temp"]
+  display.setTextColor(GxEPD_BLACK);
 
   //display.fillScreen(GxEPD_WHITE);
   //display.update();
@@ -147,13 +180,17 @@ void setup()
   
   Serial.flush();
   // goto sleep
-  //esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, LOW);
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, LOW);
 
-  //esp_deep_sleep_start();
+  esp_deep_sleep_start();
   
 }
 
 void loop()
 {
+   // Send an HTTP GET request
+  display.updateWindow(22, 30,  222,  90, true);
+  display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);
+  
   delay(8000);
 }
