@@ -9,10 +9,13 @@
 //new API
 #include <Arduino_JSON.h>
 //Since there are multiple versions of the screen, if there is a flower screen after downloading the program, please test the following four header files again!
+
 //#include <GxDEPG0213BN/GxDEPG0213BN.h>
 //#include <GxGDE0213B1/GxGDE0213B1.h>      // 2.13" b/w
 //#include <GxGDEH0213B72/GxGDEH0213B72.h>  // 2.13" b/w new panel
-#include <GxGDEH0213B73/GxGDEH0213B73.h>  // 2.13" b/w newer panel
+//#include <GxGDEH0213B73/GxGDEH0213B73.h>  // 2.13" b/w newer panel
+//#include <GxGDEW0213I5F/GxGDEW0213I5F.h>
+#include <GxGDEW027W3/GxGDEW027W3.h>
 int bmpWidth = 232, bmpHeight = 52;
 //width:150,height:39
 
@@ -21,7 +24,10 @@ int bmpWidth = 232, bmpHeight = 52;
 #include <Fonts/FreeMonoBold12pt7b.h>
 #include <Fonts/FreeMonoBold18pt7b.h>
 #include <Fonts/FreeMonoBold24pt7b.h>
-
+//conversion
+#include <iostream>
+#include <string>
+//
 
 #include <GxIO/GxIO_SPI/GxIO_SPI.h>
 #include <GxIO/GxIO.h>
@@ -41,6 +47,13 @@ int bmpWidth = 232, bmpHeight = 52;
 #define SDCARD_MISO 2
 
 #define BUTTON_PIN 39
+
+typedef enum
+{
+    RIGHT_ALIGNMENT = 0,
+    LEFT_ALIGNMENT,
+    CENTER_ALIGNMENT,
+} Text_alignment;
 //end of imports 
 
 GxIO_Class io(SPI, /*CS=5*/ ELINK_SS, /*DC=*/ ELINK_DC, /*RST=*/ ELINK_RESET);
@@ -83,36 +96,95 @@ unsigned long lastTime = 0;
 unsigned long timerDelay = 10000;
 
 String jsonBuffer;
-
-
+//
+float Temp=0.0;
+//char Time[]={"00:00:00"};
 //end of whether API
 void setup()
 {
-  //For displaying the joke on Serial Monitor
-  Serial.begin(9600);
-  //Initiate WiFi connection
-  WiFi.mode(WIFI_STA);
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println("setup");
+
+  Serial.printf("Connecting to %s ", ssid);
   WiFi.begin(ssid, password);
-  Serial.println("");
- 
-  // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.print("WiFi connected with IP: ");
-  display.println(WiFi.localIP());
+  Serial.println(" CONNECTED");
+  
   //
- 
-//
-//Initiate HTTP client
-  HTTPClient http;
-  //The API URL
-  //String request = "https://api.chucknorris.io/jokes/random";
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println("setup");
+  //Wait two seconds for next joke
   //
-   String request = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey;
+  SPI.begin(SPI_CLK, SPI_MISO, SPI_MOSI, ELINK_SS);
+  display.init(); // enable diagnostic output on Serial
 
-  //Start the request
+  display.setRotation(1);
+  display.fillScreen(GxEPD_WHITE);
+  display.setTextColor(GxEPD_BLACK);
+  display.setFont(&FreeMonoBold18pt7b);
+  display.setCursor(0, 0);
+
+  sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
+
+  if (!SD.begin(SDCARD_SS, sdSPI)) {
+    sdOK = false;
+  } else {
+    sdOK = true;
+  }
+
+  display.fillScreen(GxEPD_WHITE);
+  display.update();
+  
+}
+
+void loop()
+{
+  getTemp();
+  //displayText(String(Date), 60, CENTER_ALIGNMENT);
+  displayText(String(Temp), 90, CENTER_ALIGNMENT);
+   // Send an HTTP GET request
+  display.updateWindow(22, 30,  222,  90, true);
+  display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);
+  
+  //delay(8000);
+}
+void displayText(const String &str, uint16_t y, uint8_t alignment)
+{
+  int16_t x = 0;
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.setCursor(x, y);
+  display.getTextBounds(str, x, y, &x1, &y1, &w, &h);
+
+  switch (alignment)
+  {
+  case RIGHT_ALIGNMENT:
+    display.setCursor(display.width() - w - x1, y);
+    break;
+  case LEFT_ALIGNMENT:
+    display.setCursor(0, y);
+    break;
+  case CENTER_ALIGNMENT:
+    display.setCursor(display.width() / 2 - ((w + x1) / 2), y);
+    break;
+  default:
+    break;
+  }
+  display.println(str);
+}
+
+void getTemp()
+{
+  //Initiate HTTP client
+  HTTPClient http;
+  //API
+    String request = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey;
+    //Start the request
   http.begin(request);
   //Use HTTP GET request
   http.GET();
@@ -129,68 +201,12 @@ void setup()
   //Serial.println(doc["value"].as<char*>());
   //Close connection  
   http.end();
-  //Wait two seconds for next joke
-  
-   //
-  
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println("setup");
-  SPI.begin(SPI_CLK, SPI_MISO, SPI_MOSI, ELINK_SS);
-  display.init(); // enable diagnostic output on Serial
-
-  display.setRotation(1);
-  //
-//  display.fillScreen(GxEPD_BLACK);
-//  display.setTextColor(GxEPD_WHITE);
-  //
-  display.fillScreen(GxEPD_WHITE);
-  display.setTextColor(GxEPD_BLACK);
-  display.setFont(&FreeMonoBold12pt7b);
-  display.setCursor(0, 0);
-
-  sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
-
-  if (!SD.begin(SDCARD_SS, sdSPI)){
-  sdOK = false;
-  } else {
-  sdOK = true;
-  }
-
-  
-
- 
-  //display.drawBitmap(DFRobot, startX, startY,  bmpWidth, bmpHeight, GxEPD_BLACK);
-
-  //display.setCursor(16,60);
-  display.setCursor(20,95);
-  delay(2000);
-  display.fillScreen(GxEPD_WHITE);
-  //display.println(doc["value"].as<char*>());
-  display.print("Temp BXL:");
-  display.print(doc["main"]["temp"].as<float>()-273.15 );
-  display.print(" °C ");
-  //["main"]["temp"]
-  display.setTextColor(GxEPD_BLACK);
-
-  //display.fillScreen(GxEPD_WHITE);
-  //display.update();
-  display.update();
-
-  
-  Serial.flush();
-  // goto sleep
-  esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, LOW);
-
-  esp_deep_sleep_start();
-  
-}
-
-void loop()
-{
-   // Send an HTTP GET request
-  display.updateWindow(22, 30,  222,  90, true);
-  display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);
-  
-  delay(8000);
+  //display.print("Temp BXL:");
+  Temp=doc["main"]["temp"].as<float>()-273.15;
+  //Temp=Temperature;
+  //display.print(doc["main"]["temp"].as<float>()-273.15 );
+  //display.print(" °C ");
+  Serial.println(Temp);
+  //Serial.println(Time);
+  Serial.println(" ");
 }
