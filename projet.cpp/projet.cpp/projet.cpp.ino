@@ -4,6 +4,7 @@
 
 
 #include <WiFi.h>
+#include <WebServer.h>
 #include "time.h"
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -11,12 +12,15 @@
 #include <Arduino_JSON.h>
 
 //Provide your own WiFi credentials
-const char* ssid = "Proximus-Home-84B0";//Proximus-Home-84B0   LARAS
-const char* password = "w2eyafdmrh3re";//w2eyafdmrh3re   wifi4guest
+const char* ssid = "LARAS";//Proximus-Home-84B0   LARAS
+const char* password = "wifi4guest";//w2eyafdmrh3re   wifi4guest
 
-const char* ntpServer = "ntp.ntsc.ac.cn";//local ntp server
-const uint32_t  gmtOffset_sec = 8*3600;  //GMT+08:00
-const uint16_t   daylightOffset_sec = 0;
+/* Put IP Address details */
+IPAddress local_ip(192,168,1,1);
+IPAddress gateway(192,168,1,1);
+IPAddress subnet(255,255,255,0);
+
+WebServer server(80);
 
 
 //Since there are multiple versions of the screen, if there is a flower screen after downloading the program, please test the following four header files again!
@@ -24,7 +28,8 @@ const uint16_t   daylightOffset_sec = 0;
 //#include <GxGDE0213B1/GxGDE0213B1.h>      // 2.13" b/w
 //#include <GxGDEH0213B72/GxGDEH0213B72.h>  // 2.13" b/w new panel
 #include <GxGDEH0213B73/GxGDEH0213B73.h>  // 2.13" b/w newer panel
-
+//#include <GDEW0371W7/GDEW0371W7.h>
+//#include <GxGDEW0213Z16/GxGDEW0213Z16.h>
 //conversion
 #include <iostream>
 #include <string>
