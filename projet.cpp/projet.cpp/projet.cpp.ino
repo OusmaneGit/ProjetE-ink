@@ -16,11 +16,11 @@ const char* ssid = "LARAS";//Proximus-Home-84B0   LARAS
 const char* password = "wifi4guest";//w2eyafdmrh3re   wifi4guest
 
 /* Put IP Address details */
-IPAddress local_ip(192,168,1,1);
-IPAddress gateway(192,168,1,1);
-IPAddress subnet(255,255,255,0);
+//IPAddress local_ip(172,30,40,28);
+//IPAddress gateway(172,30,40,1);
+//IPAddress subnet(255,255,255,0);
 
-WebServer server(80);
+//WebServer server(80);
 
 
 //Since there are multiple versions of the screen, if there is a flower screen after downloading the program, please test the following four header files again!
@@ -34,9 +34,14 @@ WebServer server(80);
 #include <iostream>
 #include <string>
 //
-
+// FreeFonts from Adafruit_GFX
+/*#include <Fonts/FreeMonoBold9pt7b.h>
+#include <Fonts/FreeMonoBold12pt7b.h>
 #include <Fonts/FreeMonoBold18pt7b.h>
-
+#include <Fonts/FreeMonoBold24pt7b.h>*/
+//
+//#include <Fonts/FreeMonoBold18pt7b.h>
+#include <Fonts/FreeMonoBold12pt7b.h>
 
 #include <GxIO/GxIO_SPI/GxIO_SPI.h>
 #include <GxIO/GxIO.h>
@@ -103,9 +108,6 @@ String jsonBuffer;
 //
 float Temp=0.0;
 
-uint16_t Year = 0 , Month = 0 , Day = 0 , Hour = 0 , Minute = 0 , Second = 0;
-char Date[]={"2000/01/01"};
-char Time[]={"00:00:00"};
 bool sdOK = false;
 
 void displayText(const String &str, uint16_t y, uint8_t alignment)
@@ -113,6 +115,7 @@ void displayText(const String &str, uint16_t y, uint8_t alignment)
   int16_t x = 0;
   int16_t x1, y1;
   uint16_t w, h;
+  //display.setCursor(20,95);
   display.setCursor(x, y);
   display.getTextBounds(str, x, y, &x1, &y1, &w, &h);
 
@@ -130,6 +133,7 @@ void displayText(const String &str, uint16_t y, uint8_t alignment)
   default:
     break;
   }
+  //display.setCursor(40,95);
   display.println(str);
 }
 
@@ -152,15 +156,11 @@ void getTemp()
      Serial.println(error.f_str());
      return;
   }
-  //Print parsed value on Serial Monitor
-  //Serial.println(doc["value"].as<char*>());
-  //Close connection  
+ 
   http.end();
   //display.print("Temp BXL:");
   Temp=doc["main"]["temp"].as<float>()-273.15 ;
-  //Temp=Temperature;
-  //display.print(doc["main"]["temp"].as<float>()-273.15 );
-  //display.print(" °C ");
+  
   Serial.println(Temp);
   //Serial.println(Time);
   Serial.println(" ");
@@ -186,9 +186,9 @@ void setup()
   display.setRotation(1);
   display.fillScreen(GxEPD_WHITE);
   display.setTextColor(GxEPD_BLACK);
-  display.setFont(&FreeMonoBold18pt7b);
-  display.setCursor(0, 0);
-
+  display.setFont(&FreeMonoBold12pt7b);
+  //display.setCursor(, 0);
+  display.setCursor(60,95);
   sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
 
   if (!SD.begin(SDCARD_SS, sdSPI)) {
@@ -204,10 +204,13 @@ void setup()
 void loop()
 {
   getTemp();
-  displayText(String(Temp)+ " C" , 60, CENTER_ALIGNMENT);
-  displayText(String("BXL"), 90, CENTER_ALIGNMENT);
+  displayText("  "+String(Temp)+ "°C" , 120, LEFT_ALIGNMENT);
+  displayText(String("BXL"), 120, RIGHT_ALIGNMENT);
+  displayText(String(Temp), 80, CENTER_ALIGNMENT);
+  displayText("  "+String(Temp)+ "°C" , 40, LEFT_ALIGNMENT);
+  displayText(String("BXL"), 40, RIGHT_ALIGNMENT);
    // Send an HTTP GET request
   display.updateWindow(22, 30,  222,  90, true);
-  display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);
+  //display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);
   delay(5000);
 }
