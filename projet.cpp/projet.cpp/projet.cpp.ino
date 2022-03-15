@@ -12,8 +12,8 @@
 #include <Arduino_JSON.h>
 
 //Provide your own WiFi credentials
-const char* ssid = "LARAS";//Proximus-Home-84B0   LARAS
-const char* password = "wifi4guest";//w2eyafdmrh3re   wifi4guest
+const char* ssid = "Proximus-Home-84B0";//Proximus-Home-84B0   LARAS
+const char* password = "w2eyafdmrh3re";//w2eyafdmrh3re   wifi4guest
 
 /* Put IP Address details */
 //IPAddress local_ip(172,30,40,28);
@@ -106,7 +106,11 @@ unsigned long timerDelay = 10000;
 
 String jsonBuffer;
 //
-float Temp=0.0;
+int Temp=0;
+int temp_max;
+int pression=0;
+int humid=0;
+String country="";
 
 bool sdOK = false;
 
@@ -159,8 +163,12 @@ void getTemp()
  
   http.end();
   //display.print("Temp BXL:");
-  Temp=doc["main"]["temp"].as<float>()-273.15 ;
-  
+  Temp=doc["main"]["temp"].as<int>()-273.15 ;
+  temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
+  pression=doc["main"]["pressure"].as<int>() ;
+  humid=doc["main"]["humidity"].as<int>() ;
+  country=doc["name"].as<String>() ;
+  //String country="";
   Serial.println(Temp);
   //Serial.println(Time);
   Serial.println(" ");
@@ -203,14 +211,15 @@ void setup()
 
 void loop()
 {
+  delay(2000);
   getTemp();
-  displayText("  "+String(Temp)+ "°C" , 120, LEFT_ALIGNMENT);
-  displayText(String("BXL"), 120, RIGHT_ALIGNMENT);
-  displayText(String(Temp), 80, CENTER_ALIGNMENT);
-  displayText("  "+String(Temp)+ "°C" , 40, LEFT_ALIGNMENT);
-  displayText(String("BXL"), 40, RIGHT_ALIGNMENT);
+  displayText("      "+String(Temp)+ "°C" , 120, LEFT_ALIGNMENT);
+  //displayText(String(pression), 117, RIGHT_ALIGNMENT);
+  displayText(String(country), 80, CENTER_ALIGNMENT);
+  displayText("   max   "+String(temp_max)+ "°C" , 40, LEFT_ALIGNMENT);
+  //displayText(String(humid), 35, RIGHT_ALIGNMENT);
    // Send an HTTP GET request
   display.updateWindow(22, 30,  222,  90, true);
   //display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);
-  delay(5000);
+  
 }
