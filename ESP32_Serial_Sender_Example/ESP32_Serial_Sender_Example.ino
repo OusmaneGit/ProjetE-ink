@@ -1,9 +1,7 @@
+#include <esp_now.h>
 #include <GxEPD.h>
 #include "SD.h"
 #include "SPI.h"
-
-#include <esp_now.h>
-
 
 #include <WiFi.h>
 #include <WebServer.h>
@@ -29,14 +27,6 @@ const int GPIO_PIN_NUMBER_22 = 22;
 const int GPIO_PIN_NUMBER_23 = 23;
 const int GPIO_PIN_NUMBER_15 = 15;
 
-/* Put IP Address details */
-//IPAddress local_ip(172,30,40,28);
-//IPAddress gateway(172,30,40,1);
-//IPAddress subnet(255,255,255,0);
-
-// REPLACE WITH YOUR ESP RECEIVER'S MAC ADDRESS
-
-//uint8_t broadcastAddress3[] = {0xFF, , , , , };
 
 //Since there are multiple versions of the screen, if there is a flower screen after downloading the program, please test the following four header files again!
 //#include <GxDEPG0213BN/GxDEPG0213BN.h>
@@ -120,7 +110,7 @@ unsigned long timerDelay = 10000;
 
 String jsonBuffer;
 //
-int Temp=0;
+float Temp=0.0;
 int temp_max;
 int pression=0;
 int humid=0;
@@ -155,8 +145,6 @@ String httpGETRequest(const char* serverName) {
 
   return payload;
 }
-
-
 void displayText(const String &str, uint16_t y, uint8_t alignment)
 {
   int16_t x = 0;
@@ -183,7 +171,6 @@ void displayText(const String &str, uint16_t y, uint8_t alignment)
   //display.setCursor(40,95);
   display.println(str);
 }
-
 void getTemp()
 {
   //Initiate HTTP client
@@ -206,7 +193,7 @@ void getTemp()
  
   http.end();
   //display.print("Temp BXL:");
-  Temp=doc["main"]["temp"].as<int>()-273.15 ;
+  Temp=doc["main"]["temp"].as<float>()-273.15 ;
   temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
   pression=doc["main"]["pressure"].as<int>() ;
   humid=doc["main"]["humidity"].as<int>() ;
@@ -217,12 +204,23 @@ void getTemp()
   Serial.println(" ");
 }
 
-void setup()
-{
-  
+// Sending/Receiving example
 
-//Serial.begin(115200);
-Serial.begin(9600);
+HardwareSerial Sender(1);   // Define a Serial port instance called 'Sender' using serial port 1
+
+HardwareSerial Sender1(3); 
+
+#define Sender_Txd_pin 21
+#define Sender_Rxd_pin 22
+
+void setup() {
+  //Serial.begin(Baud Rate, Data Protocol, Txd pin, Rxd pin);
+  //Serial.begin(9600);
+  Serial.begin(115200);                                             // Define and start serial monitor
+  Sender.begin(115200, SERIAL_8N1, Sender_Txd_pin, Sender_Rxd_pin); // Define and start Sender serial port
+  //Sender1.begin(115200, SERIAL_8N1, Sender_Txd_pin, Sender_Rxd_pin);
+
+  
   Serial.print("Connecting to ");
   Serial.println("LARAS");
   WiFi.begin(ssid, password);
@@ -254,25 +252,17 @@ Serial.begin(9600);
   display.update();
 
   server.begin();
-  //
 }
 
-void loop()
-{
-  
-  
-
-
- 
-//test_struct test;
- 
-  
-  delay(500);  
+void loop() {
+  //float sensor_temperature = 22.141;                               // Set an example value
+  //Sender.print(sensor_temperature);                                // Send it to Sender serial port
   
   //delay(2000);
 
-    
-      WiFiClient client = server.available(); 
+  //
+
+ WiFiClient client = server.available(); 
       if (client) { 
         Serial.println("New Client is requesting web page"); 
         String current_data_line = ""; 
@@ -296,16 +286,20 @@ void loop()
             Serial.println("GPIO23 LED is ON");
             eINK_ONE = "on";
             getTemp();
-            displayText("      "+String(Temp)+ "°C" , 120, LEFT_ALIGNMENT);
+            /*displayText("      "+String(Temp)+ "°C" , 120, LEFT_ALIGNMENT);
             //displayText(String(pression), 117, RIGHT_ALIGNMENT);
             displayText(String(country), 80, CENTER_ALIGNMENT);
             displayText("   max   "+String(temp_max)+ "°C" , 40, LEFT_ALIGNMENT);
             //displayText(String(humid), 35, RIGHT_ALIGNMENT);
              // Send an HTTP GET request
             display.updateWindow(22, 30,  222,  90, true);
-            //display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);
+            //display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);*/
             
             //digitalWrite(GPIO_PIN_NUMBER_22, HIGH);
+            float sensor_temperature = Temp;                               // Set an example value
+            Sender.print(sensor_temperature);                                // Send it to Sender serial port
+            
+            delay(2000);
           } 
           if (header.indexOf("LED0=OFF") != -1) 
           {
@@ -313,13 +307,16 @@ void loop()
             eINK_ONE = "off";
             //digitalWrite(GPIO_PIN_NUMBER_22, LOW);
           } 
-          if (header.indexOf("LED1=ON") != -1)
+          if (header.indexOf("e-INK1=ON") != -1)
           {
             Serial.println("GPIO23 LED is ON");
             eINK_TWO = "on";
+            getTemp();
+             float sensor_temperature = Temp;                               // Set an example value
+             Sender1.print(sensor_temperature);                                // Send it to Sender serial port
             //digitalWrite(GPIO_PIN_NUMBER_23, HIGH);
           }
-          if (header.indexOf("LED1=OFF") != -1) 
+          if (header.indexOf("e-INK1=OFF") != -1) 
           {
             Serial.println("GPIO23 LED is OFF");
             eINK_TWO = "off";
@@ -381,38 +378,5 @@ void loop()
       Serial.println("Client disconnected.");
       Serial.println("");
       }
-       /*test_struct test2;
-  test_struct test3;
-  test.x = random(0,20);
-  test.y = random(0,20);
-  test2.x = random(0,20);
-  test2.y = random(0,20);
-  test3.x = random(0,20);
-  test3.y = random(0,20);
- 
-  esp_err_t result1 = esp_now_send(
-    broadcastAddress1, 
-    (uint8_t *) &test,
-    sizeof(test_struct));
-   
-  /*if (result1 == ESP_OK) {
-     displayText("      "+String(test.x)+ "°C" , 120, LEFT_ALIGNMENT);
-    //Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }*/
-  /*delay(5000);
-  esp_err_t result2 = esp_now_send(
-    broadcastAddress2, 
-    (uint8_t *) &test2,
-    sizeof(test_struct));
-
-  if (result2 == ESP_OK) {
-    displayText("      "+String(test2.x)+ "°C" , 120, LEFT_ALIGNMENT);
-    //Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }*/
+  //
 }
