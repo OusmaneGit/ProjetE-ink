@@ -12,8 +12,8 @@
 #include <Arduino_JSON.h>
 //#include "ESPAsyncWebServer.h"
 //Provide your own WiFi credentials
-const char* ssid = "Proximus-Home-84B0";//Proximus-Home-84B0   LARAS ousmane
-const char* password = "w2eyafdmrh3re";//w2eyafdmrh3re   wifi4guest  kasskass
+const char* ssid = "ousmane";//Proximus-Home-84B0   LARAS ousmane
+const char* password = "kasskass";//w2eyafdmrh3re   wifi4guest  kasskass
 WiFiServer server(80);
 //AsyncWebServer server1(80);
 String header;
@@ -171,12 +171,14 @@ void displayText(const String &str, uint16_t y, uint8_t alignment)
   //display.setCursor(40,95);
   display.println(str);
 }
-void getTemp()
+void getTemp(String code)
 {
   //Initiate HTTP client
   HTTPClient http;
   //API
-    String request = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey;
+    String request = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + code + "&APPID=" + openWeatherMapApiKey;
+    //String request = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey;
+
     //Start the request
   http.begin(request);
   //Use HTTP GET request
@@ -281,11 +283,12 @@ void loop() {
             client.println("Connection: close");
             client.println();
                       
-          if (header.indexOf("e-INK0=ON") != -1) 
+          if (header.indexOf("BXL=ON") != -1) 
           {
             Serial.println("GPIO23 LED is ON");
             eINK_ONE = "on";
-            getTemp();
+            String code="BXL";
+            getTemp(code);
             /*displayText("      "+String(Temp)+ "°C" , 120, LEFT_ALIGNMENT);
             //displayText(String(pression), 117, RIGHT_ALIGNMENT);
             displayText(String(country), 80, CENTER_ALIGNMENT);
@@ -311,9 +314,11 @@ void loop() {
           {
             Serial.println("GPIO23 LED is ON");
             eINK_TWO = "on";
-            getTemp();
-             float sensor_temperature = Temp;                               // Set an example value
-             Sender1.print(sensor_temperature);                                // Send it to Sender serial port
+            String code="BXL";
+            getTemp(code);
+            
+             float sensor_temperature = 11.0;                               // Set an example value
+             Sender.print(sensor_temperature);                                // Send it to Sender serial port
             //digitalWrite(GPIO_PIN_NUMBER_23, HIGH);
           }
           if (header.indexOf("e-INK1=OFF") != -1) 
@@ -322,17 +327,7 @@ void loop() {
             eINK_TWO = "off";
             //digitalWrite(GPIO_PIN_NUMBER_23, LOW);
           }
-          if (header.indexOf("LED2=ON") != -1) 
-          {
-            Serial.println("GPIO15 LED is ON");
-            eINK_THREE= "on";
-            //digitalWrite(GPIO_PIN_NUMBER_15, HIGH);
-          }
-          if(header.indexOf("LED2=OFF") != -1) {
-            Serial.println("GPIO15 LED is OFF");
-            eINK_THREE = "off";
-            //digitalWrite(GPIO_PIN_NUMBER_15, LOW);
-          }
+          
                       
         client.println("<!DOCTYPE html><html>");
         client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
@@ -349,11 +344,13 @@ void loop() {
         client.println("<p> First is " + eINK_ONE + "</p>");
         // If the PIN_NUMBER_22State is off, it displays the ON button 
         client.println("<center> <button class=\"button\" name=\"e-INK0\" value=\"ON\" type=\"submit\">e-INK0 ON</button>") ;
-        /*client.println("<button class=\"button\" name=\"LED0\" value=\"OFF\" type=\"submit\">LED0 OFF</button><br><br>");*/
+        
+        client.println("<button class=\"button\" name=\"BXL\" value=\"ON\" type=\"submit\">BXL</button><br><br>");
+        
         client.println("<p>Second is " + eINK_TWO + "</p>");
         client.println("<button class=\"button\" name=\"e-INK1\" value=\"ON\" type=\"submit\">e-INK1 ON</button>");
         /*client.println("<button class=\"button\" name=\"LED1\" value=\"OFF\" type=\"submit\">LED1 OFF</button> <br><br>");*/
-        client.println("<p>third is " + eINK_THREE + "</p>");
+        /*client.println("<p>third is " + eINK_THREE + "</p>");
         client.println ("<button class=\"button\" name=\"e-INK2\" value=\"ON\" type=\"submit\">eINK2 ON</button>");
         /*client.println ("<button class=\"button\" name=\"LED2\" value=\"OFF\" type=\"submit\">LED2 OFF</button></center>");*/
         client.println("</center></form></body></html>");

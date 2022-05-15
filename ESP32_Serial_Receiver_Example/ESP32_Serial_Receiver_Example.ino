@@ -146,6 +146,7 @@ int startX = 9, startY = 20;
 
 HardwareSerial Receiver(2); // Define a Serial port instance called 'Receiver' using serial port 2
 
+ // Define a Serial port instance called 'Receiver' using serial port 2
 #define Receiver_Txd_pin 21
 #define Receiver_Rxd_pin 22
 
