@@ -191,6 +191,7 @@ void setup() {
 void loop() {
  while (Receiver.available()) {                         // Wait for the Receiver to get the characters
     float received_temperature = Receiver.parseFloat(); // Display the Receivers characters
+    //String received_temperature = Receiver.readString();
     Serial.println(received_temperature);               // Display the result on the serial monitor
 
     Serial.println();

@@ -12,8 +12,8 @@
 #include <Arduino_JSON.h>
 //#include "ESPAsyncWebServer.h"
 //Provide your own WiFi credentials
-const char* ssid = "ousmane";//Proximus-Home-84B0   LARAS ousmane
-const char* password = "kasskass";//w2eyafdmrh3re   wifi4guest  kasskass
+const char* ssid = "Proximus-Home-84B0";//Proximus-Home-84B0   LARAS ousmane
+const char* password = "w2eyafdmrh3re";//w2eyafdmrh3re   wifi4guest  kasskass
 WiFiServer server(80);
 //AsyncWebServer server1(80);
 String header;
@@ -21,7 +21,10 @@ String header;
 String eINK_ONE = "off";
 String eINK_TWO = "off";
 String eINK_THREE = "off";
-
+     String   TEMPBXL="off";
+     String     PRESBXL="off";
+     String     TEMPTOR="off";
+      String     PRETOR="off";
 
 const int GPIO_PIN_NUMBER_22 = 22;
 const int GPIO_PIN_NUMBER_23 = 23;
@@ -99,6 +102,10 @@ String openWeatherMapApiKey = "b8890bd0a9fe6b0bccc79b716cbdcd2f";
 // Replace with your country code and city
 String city = "BRUXELLES";
 String countryCode = "BXL";
+//france
+String cityFR = "BRUXELLES";
+String codeFR = "BXL";
+
 
 // THE DEFAULT TIMER IS SET TO 10 SECONDS FOR TESTING PURPOSES
 // For a final application, check the API call limits per hour/minute to avoid getting blocked/banned
@@ -110,9 +117,13 @@ unsigned long timerDelay = 10000;
 
 String jsonBuffer;
 //
-float Temp=0.0;
+float TempBXL=0.0;
+float pressionBXL=0.0;
+float TempTOR=0.0;
+float pressionTOR=0.0;
+
 int temp_max;
-int pression=0;
+
 int humid=0;
 String country="";
 
@@ -171,7 +182,42 @@ void displayText(const String &str, uint16_t y, uint8_t alignment)
   //display.setCursor(40,95);
   display.println(str);
 }
-void getTemp(String code)
+
+void getTempPressionTORONTO(){
+  //Initiate HTTP client
+              HTTPClient http;
+              //API
+                String request = "http://api.openweathermap.org/data/2.5/weather?q=TORONTO,CA&APPID=" + openWeatherMapApiKey;
+                //String request = "http://api.openweathermap.org/data/2.5/weather?q=Paris"  + "," +  "FR&APPID=" + openWeatherMapApiKey;
+            
+                //Start the request
+              http.begin(request);
+              //Use HTTP GET request
+              http.GET();
+              //Response from server
+              response = http.getString();
+              //Parse JSON, read error if any
+              DeserializationError error = deserializeJson(doc, response);
+              if(error) {
+                 Serial.print(F("deserializeJson() failed: "));
+                 Serial.println(error.f_str());
+                 return;
+              }
+             
+              http.end();
+              //display.print("Temp BXL:");
+              TempTOR=doc["main"]["temp"].as<float>()-273.15 ;
+              //temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
+              pressionTOR=doc["main"]["pressure"].as<float>() ;
+              //humid=doc["main"]["humidity"].as<int>() ;
+              //country=doc["name"].as<String>() ;
+              //String country="";
+              Serial.println(TempTOR);
+              Serial.println(pressionTOR);
+              //Serial.println(Time);
+              Serial.println(" ");
+}
+void getTempPressionBXL(String code)
 {
   //Initiate HTTP client
   HTTPClient http;
@@ -195,13 +241,14 @@ void getTemp(String code)
  
   http.end();
   //display.print("Temp BXL:");
-  Temp=doc["main"]["temp"].as<float>()-273.15 ;
-  temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
-  pression=doc["main"]["pressure"].as<int>() ;
-  humid=doc["main"]["humidity"].as<int>() ;
-  country=doc["name"].as<String>() ;
+  TempBXL=doc["main"]["temp"].as<float>()-273.15 ;
+  //temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
+  pressionBXL=doc["main"]["pressure"].as<float>() ;
+  //humid=doc["main"]["humidity"].as<int>() ;
+  //country=doc["name"].as<String>() ;
   //String country="";
-  Serial.println(Temp);
+  Serial.println(TempBXL);
+  Serial.println(pressionBXL);
   //Serial.println(Time);
   Serial.println(" ");
 }
@@ -210,7 +257,7 @@ void getTemp(String code)
 
 HardwareSerial Sender(1);   // Define a Serial port instance called 'Sender' using serial port 1
 
-HardwareSerial Sender1(3); 
+//HardwareSerial Sender1(3); 
 
 #define Sender_Txd_pin 21
 #define Sender_Rxd_pin 22
@@ -283,44 +330,94 @@ void loop() {
             client.println("Connection: close");
             client.println();
                       
-          if (header.indexOf("BXL=ON") != -1) 
+          if (header.indexOf("TEMPBXL=ON") != -1) 
           {
             Serial.println("GPIO23 LED is ON");
-            eINK_ONE = "on";
+            TEMPBXL = "on";
             String code="BXL";
-            getTemp(code);
+            getTempPressionBXL(code);
             /*displayText("      "+String(Temp)+ "°C" , 120, LEFT_ALIGNMENT);
             //displayText(String(pression), 117, RIGHT_ALIGNMENT);
             displayText(String(country), 80, CENTER_ALIGNMENT);
             displayText("   max   "+String(temp_max)+ "°C" , 40, LEFT_ALIGNMENT);
             //displayText(String(humid), 35, RIGHT_ALIGNMENT);
              // Send an HTTP GET request
+             TEMPBXL
+             PRESBXL
+             TEMPTOR
+             PRETOR
             display.updateWindow(22, 30,  222,  90, true);
             //display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);*/
             
             //digitalWrite(GPIO_PIN_NUMBER_22, HIGH);
-            float sensor_temperature = Temp;                               // Set an example value
+            
+            float sensor_temperature = TempBXL;                               // Set an example value
             Sender.print(sensor_temperature);                                // Send it to Sender serial port
             
-            delay(2000);
+            //delay(2000);
           } 
+
+          if(header.indexOf("PRESBXL=ON") != -1){
+             Serial.println("GPIO23 LED is ON");
+            PRESBXL = "on";
+            String code="BXL";
+            getTempPressionBXL(code);
+              //getTempFR();
+
+              float sensor_pressionbxl = pressionBXL;                               // Set an example value
+               Sender.print(sensor_pressionbxl);                                // Send it to Sender serial port
+          }
+          
           if (header.indexOf("LED0=OFF") != -1) 
           {
             Serial.println("GPIO23 LED is OFF");
             eINK_ONE = "off";
             //digitalWrite(GPIO_PIN_NUMBER_22, LOW);
           } 
-          if (header.indexOf("e-INK1=ON") != -1)
+          if (header.indexOf("TEMPTOR=ON") != -1)
           {
             Serial.println("GPIO23 LED is ON");
-            eINK_TWO = "on";
+            TEMPTOR = "on";
+            /*
+            Serial.println("GPIO23 LED is ON");
+            TEMPTOR = "on";
             String code="BXL";
-            getTemp(code);
+            getTempFR(code);
             
-             float sensor_temperature = 11.0;                               // Set an example value
+             float sensor_temperature = Temp;                               // Set an example value
              Sender.print(sensor_temperature);                                // Send it to Sender serial port
-            //digitalWrite(GPIO_PIN_NUMBER_23, HIGH);
+            //digitalWrite(GPIO_PIN_NUMBER_23, HIGH);*/
+             getTempPressionTORONTO();
+             //TempTOR=doc["main"]["temp"].as<float>()-273.15 ;
+              //temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
+              //pressionTOR=doc["main"]["pressure"].as<float>() ;
+
+               float sensor_temp = TempTOR;                               // Set an example value
+               Sender.print(sensor_temp);                                // Send it to Sender serial port
           }
+          //
+          if (header.indexOf("PRETOR=ON") != -1)
+          {
+            Serial.println("GPIO23 LED is ON");
+            PRETOR = "on";
+            /*
+            Serial.println("GPIO23 LED is ON");
+            PRETOR = "on";
+            String code="BXL";
+            getTempFR(code);
+            
+             float sensor_temperature = Temp;                               // Set an example value
+             Sender.print(sensor_temperature);                                // Send it to Sender serial port
+            //digitalWrite(GPIO_PIN_NUMBER_23, HIGH);*/
+             getTempPressionTORONTO();
+             //TempTOR=doc["main"]["temp"].as<float>()-273.15 ;
+              //temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
+              //pressionTOR=doc["main"]["pressure"].as<float>() ;
+
+               float sensor_pression = pressionTOR;                               // Set an example value
+               Sender.print(sensor_pression);                                 // Send it to Sender serial port
+          }
+          //
           if (header.indexOf("e-INK1=OFF") != -1) 
           {
             Serial.println("GPIO23 LED is OFF");
@@ -341,14 +438,15 @@ void loop() {
         /*client.println("<center><h2>Web Server Example Microcontrollerslab.com</h2></center>" );
         client.println("<center><h2>Press on button to turn on led and off button to turn off LED</h3></center>");*/
         client.println("<form><center>");
-        client.println("<p> First is " + eINK_ONE + "</p>");
+        client.println("<p> Temperature " + eINK_ONE + "</p>");
         // If the PIN_NUMBER_22State is off, it displays the ON button 
-        client.println("<center> <button class=\"button\" name=\"e-INK0\" value=\"ON\" type=\"submit\">e-INK0 ON</button>") ;
+        client.println("<center> <button class=\"button\" name=\"TEMPBXL\" value=\"ON\" type=\"submit\">Temp BRUXELLES</button>") ;
         
-        client.println("<button class=\"button\" name=\"BXL\" value=\"ON\" type=\"submit\">BXL</button><br><br>");
+        client.println("<button class=\"button\" name=\"PRESBXL\" value=\"ON\" type=\"submit\">PRESSSION BXL</button><br><br>");
         
-        client.println("<p>Second is " + eINK_TWO + "</p>");
-        client.println("<button class=\"button\" name=\"e-INK1\" value=\"ON\" type=\"submit\">e-INK1 ON</button>");
+        client.println("<p>TORONTO " + eINK_TWO + "</p>");
+        client.println("<button class=\"button\" name=\"TEMPTOR\" value=\"ON\" type=\"submit\">TEMP Toronto ON</button>");
+        client.println("<button class=\"button\" name=\"PRETOR\" value=\"ON\" type=\"submit\">Pression TORONTO ON</button>");
         /*client.println("<button class=\"button\" name=\"LED1\" value=\"OFF\" type=\"submit\">LED1 OFF</button> <br><br>");*/
         /*client.println("<p>third is " + eINK_THREE + "</p>");
         client.println ("<button class=\"button\" name=\"e-INK2\" value=\"ON\" type=\"submit\">eINK2 ON</button>");
