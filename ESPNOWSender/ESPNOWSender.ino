@@ -1,9 +1,22 @@
+/*********
+  Rui Santos
+  Complete project details at https://RandomNerdTutorials.com/esp-now-one-to-many-esp32-esp8266/
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files.
+  
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+*********/
+
 #include <esp_now.h>
+#include <WiFi.h>
+//
 #include <GxEPD.h>
 #include "SD.h"
 #include "SPI.h"
 
-#include <WiFi.h>
+//#include <WiFi.h>
 #include <WebServer.h>
 #include "time.h"
 #include <HTTPClient.h>
@@ -117,10 +130,10 @@ unsigned long timerDelay = 10000;
 
 String jsonBuffer;
 //
-float BxlTemperature=0.0;
-float pressionBXL=0.0;
-float TorontoTemperature=0.0;
-float pressionTOR=0.0;
+int BxlTemperature=0;
+int pressionBXL=0;
+int TorontoTemperature=0;
+int pressionTOR=0;
 
 int temp_max;
 
@@ -211,9 +224,9 @@ float TorontoTemperature=0.0;*/
              //
               http.end();
               //display.print("Temp BXL:");
-              TorontoTemperature=doc["main"]["temp"].as<float>()-273.15 ;
-              //temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
-              pressionTOR=doc["main"]["pressure"].as<float>() ;
+              TorontoTemperature=doc["main"]["temp"].as<int>()-273 ;
+              //temp_max=doc["main"]["temp_max"].as<int>()-273 ; 
+              pressionTOR=doc["main"]["pressure"].as<int>() ;
               //humid=doc["main"]["humidity"].as<int>() ;
               //country=doc["name"].as<String>() ;
               //String country="";
@@ -246,9 +259,9 @@ void getTempPressionBXL(String code)
  
   http.end();
   //display.print("Temp BXL:");
-  BxlTemperature=doc["main"]["temp"].as<float>()-273.15 ;
-  //temp_max=doc["main"]["temp_max"].as<int>()-273.15 ; 
-  pressionBXL=doc["main"]["pressure"].as<float>() ;
+  BxlTemperature=doc["main"]["temp"].as<int>()-273 ;
+  //temp_max=doc["main"]["temp_max"].as<int>()-273 ; 
+  pressionBXL=doc["main"]["pressure"].as<int>() ;
   //humid=doc["main"]["humidity"].as<int>() ;
   //country=doc["name"].as<String>() ;
   //String country="";
@@ -258,23 +271,68 @@ void getTempPressionBXL(String code)
   Serial.println(" ");
 }
 
-// Sending/Receiving example
+//
+// REPLACE WITH YOUR ESP RECEIVER'S MAC ADDRESS
+/*7C:9E:BD:FA:E9:FC 
+7C:9E:BD:FA:F3:E0
+7C:9E:BD:FA:EB:F4*/
+uint8_t broadcastAddress1[] = {0x7C, 0x9E, 0xBD, 0xFA, 0xE9, 0xFC};
+uint8_t broadcastAddress2[] = {0x7C, 0x9E, 0xBD, 0xFA, 0xF3, 0xE0 };
+uint8_t broadcastAddress3[] = {0x7C, 0x9E, 0xBD, 0xFA, 0xEB, 0xF4 };
 
-HardwareSerial Sender(1);   // Define a Serial port instance called 'Sender' using serial port 1
+typedef struct test_struct {
+  int x;
+  int y;
+} test_struct;
 
-//HardwareSerial Sender1(3); 
-
-#define Sender_Txd_pin 21
-#define Sender_Rxd_pin 22
-
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  char macStr[18];
+  Serial.print("Packet to: ");
+  // Copies the sender mac address to a string
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  Serial.print(macStr);
+  Serial.print(" send status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+ 
 void setup() {
-  //Serial.begin(Baud Rate, Data Protocol, Txd pin, Rxd pin);
-  //Serial.begin(9600);
-  Serial.begin(115200);                                             // Define and start serial monitor
-  Sender.begin(115200, SERIAL_8N1, Sender_Txd_pin, Sender_Rxd_pin); // Define and start Sender serial port
-  //Sender1.begin(115200, SERIAL_8N1, Sender_Txd_pin, Sender_Rxd_pin);
+ 
+  Serial.begin(115200);
+ 
+  WiFi.mode(WIFI_STA);
+ 
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
 
+  esp_now_register_send_cb(OnDataSent);
+
+  // register peer
+  esp_now_peer_info_t peerInfo;
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+    
+  memcpy(peerInfo.peer_addr, broadcastAddress1, 6);
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
   
+  memcpy(peerInfo.peer_addr, broadcastAddress2, 6);
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
+  memcpy(peerInfo.peer_addr, broadcastAddress3, 6);
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
+  
+  //
+
   Serial.print("Connecting to ");
   Serial.println("LARAS");
   WiFi.begin(ssid, password);
@@ -306,17 +364,62 @@ void setup() {
   display.update();
 
   server.begin();
-}
-
-void loop() {
-  //float sensor_temperature = 22.141;                               // Set an example value
-  //Sender.print(sensor_temperature);                                // Send it to Sender serial port
   
-  //delay(2000);
+}
+ 
+void loop() {
+  
+  test_struct test;
+  test_struct test2;
+  test_struct test3;
+  test_struct test4;
+  /*test.x = random(0,20);
+  test.y = random(0,20);
+  test2.x = random(0,20);
+  test2.y = random(0,20);
+  test3.x = random(0,20);
+  test3.y = random(0,20);*/
+ 
+  /*esp_err_t result1 = esp_now_send(
+    broadcastAddress1, 
+    (uint8_t *) &test,
+    sizeof(test_struct));
+   
+  if (result1 == ESP_OK) {
+    Serial.println("Sent with success");
+  }
+  else {
+    Serial.println("Error sending the data");
+  }
+  delay(500);
+  esp_err_t result2 = esp_now_send(
+    broadcastAddress2, 
+    (uint8_t *) &test2,
+    sizeof(test_struct));
 
+  if (result2 == ESP_OK) {
+    Serial.println("Sent with success");
+  }
+  else {
+    Serial.println("Error sending the data");
+  }
+  
+  delay(500);  
+  esp_err_t result3 = esp_now_send(
+    broadcastAddress3, 
+    (uint8_t *) &test3,
+    sizeof(test_struct));
+   
+  if (result3 == ESP_OK) {
+    Serial.println("Sent with success");
+  }
+  else {
+    Serial.println("Error sending the data");
+  }
+  delay(2000);*/
   //
-
- WiFiClient client = server.available(); 
+//
+  WiFiClient client = server.available(); 
       if (client) { 
         Serial.println("New Client is requesting web page"); 
         String current_data_line = ""; 
@@ -342,9 +445,21 @@ void loop() {
             String code="BXL";
             getTempPressionBXL(code);
             
-            
-            float sensor_temperature = BxlTemperature;                               // Set an example value
-            Sender.print(sensor_temperature);                                // Send it to Sender serial port
+            test.x = BxlTemperature;
+            test.y = BxlTemperature;
+             esp_err_t result1 = esp_now_send(
+                  broadcastAddress1, 
+                  (uint8_t *) &test,
+                  sizeof(test_struct));
+                 
+                if (result1 == ESP_OK) {
+                  Serial.println("Sent with success");
+                }
+                else {
+                  Serial.println("Error sending the data");
+                }
+            int sensor_temperature = BxlTemperature;                               // Set an example value
+            //Sender.print(sensor_temperature);                                // Send it to Sender serial port
             
             //delay(2000);
           } 
@@ -355,9 +470,22 @@ void loop() {
             String code="BXL";
             getTempPressionBXL(code);
               //getTempFR();
-
-              float sensor_pressionbxl = pressionBXL;                               // Set an example value
-               Sender.print(sensor_pressionbxl);                                // Send it to Sender serial port
+             test2.x = pressionBXL;
+           test2.y = pressionBXL;
+           esp_err_t result2 = esp_now_send(
+                broadcastAddress2, 
+                (uint8_t *) &test2,
+                sizeof(test_struct));
+            
+              if (result2 == ESP_OK) {
+                Serial.println("Sent with success");
+              }
+              else {
+                Serial.println("Error sending the data");
+              }
+  //
+              int sensor_pressionbxl = pressionBXL;                               // Set an example value
+               //Sender.print(sensor_pressionbxl);                                // Send it to Sender serial port
           }
           
           if (header.indexOf("LED0=OFF") != -1) 
@@ -372,10 +500,28 @@ void loop() {
             TEMPTOR = "on";
           
              getTempPressionTORONTO();
-            
 
-               float sensor_temp = TorontoTemperature;                               // Set an example value
-               Sender.print(sensor_temp);                                // Send it to Sender serial port
+             test3.x = TorontoTemperature;
+             test3.y = TorontoTemperature;
+
+             //
+               esp_err_t result3 = esp_now_send(
+                  broadcastAddress3, 
+                  (uint8_t *) &test3,
+                  sizeof(test_struct));
+                 
+                if (result3 == ESP_OK) {
+                  Serial.println("Sent with success");
+                }
+                else {
+                  Serial.println("Error sending the data");
+                }
+             //
+
+            
+                
+               int sensor_temp = TorontoTemperature;                               // Set an example value
+               //Sender.print(sensor_temp);                                // Send it to Sender serial port
           }
           //
           if (header.indexOf("PRETOR=ON") != -1)
@@ -384,10 +530,27 @@ void loop() {
             PRETOR = "on";
            
              getTempPressionTORONTO();
-            
+             //
 
-               float sensor_pression = pressionTOR;                               // Set an example value
-               Sender.print(sensor_pression);                                 // Send it to Sender serial port
+              test4.x = pressionTOR;
+             test4.y = pressionTOR;
+
+             //
+               esp_err_t result4 = esp_now_send(
+                  broadcastAddress3, 
+                  (uint8_t *) &test4,
+                  sizeof(test_struct));
+                 
+                if (result4 == ESP_OK) {
+                  Serial.println("Sent with success");
+                }
+                else {
+                  Serial.println("Error sending the data");
+                }
+             //
+
+               int sensor_pression = pressionTOR;                               // Set an example value
+               //Sender.print(sensor_pression);                                 // Send it to Sender serial port
           }
           //
           if (header.indexOf("e-INK1=OFF") != -1) 
@@ -445,5 +608,8 @@ void loop() {
       Serial.println("Client disconnected.");
       Serial.println("");
       }
+
+  //
+
   //
 }

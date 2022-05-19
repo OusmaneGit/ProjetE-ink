@@ -1,15 +1,202 @@
 // include library, include base class, make path known
+
+
 #include <GxEPD.h>
 #include "SD.h"
 #include "SPI.h"
+
+
+#include <WiFi.h>
+#include "time.h"
+
+const char* ssid = "Proximus-Home-84B0";//Proximus-Home-84B0   LARAS ousmane
+const char* password = "w2eyafdmrh3re";//w2eyafdmrh3re   wifi4guest  kasskass
+
+const char* ntpServer = "ntp.ntsc.ac.cn";//local ntp server
+const uint32_t  gmtOffset_sec = 8*3600;  //GMT+08:00
+const uint16_t   daylightOffset_sec = 0;
+
+// Sending/Receiving example
+
+HardwareSerial Receiver(2); // Define a Serial port instance called 'Receiver' using serial port 2
+//HardwareSerial Receiver3(3); // Define a Serial port instance called 'Receiver' using serial port 2
 
 //Since there are multiple versions of the screen, if there is a flower screen after downloading the program, please test the following four header files again!
 //#include <GxDEPG0213BN/GxDEPG0213BN.h>
 //#include <GxGDE0213B1/GxGDE0213B1.h>      // 2.13" b/w
 //#include <GxGDEH0213B72/GxGDEH0213B72.h>  // 2.13" b/w new panel
 #include <GxGDEH0213B73/GxGDEH0213B73.h>  // 2.13" b/w newer panel
+
+
+#include <Fonts/FreeMonoBold18pt7b.h>
+
+
+#include <GxIO/GxIO_SPI/GxIO_SPI.h>
+#include <GxIO/GxIO.h>
+
+#define SPI_MOSI 23
+#define SPI_MISO -1
+#define SPI_CLK 18
+
+#define ELINK_SS 5
+#define ELINK_BUSY 4
+#define ELINK_RESET 16
+#define ELINK_DC 17
+
+#define SDCARD_SS 13
+#define SDCARD_CLK 14
+#define SDCARD_MOSI 15
+#define SDCARD_MISO 2
+
+#define BUTTON_PIN 39
+ // Define a Serial port instance called 'Receiver' using serial port 2
+#define Receiver_Txd_pin 21
+#define Receiver_Rxd_pin 22
+
+
+typedef enum
+{
+    RIGHT_ALIGNMENT = 0,
+    LEFT_ALIGNMENT,
+    CENTER_ALIGNMENT,
+} Text_alignment;
+
+
+
+GxIO_Class io(SPI, /*CS=5*/ ELINK_SS, /*DC=*/ ELINK_DC, /*RST=*/ ELINK_RESET);
+GxEPD_Class display(io, /*RST=*/ ELINK_RESET, /*BUSY=*/ ELINK_BUSY);
+
+SPIClass sdSPI(VSPI);
+
+const uint8_t Whiteboard[1700] = {0x00};
+
+uint16_t Year = 0 , Month = 0 , Day = 0 , Hour = 0 , Minute = 0 , Second = 0;
+char Date[]={"2000/01/01"};
+char Time[]={"00:00:00"};
+bool sdOK = false;
+
+void displayText(const String &str, uint16_t y, uint8_t alignment)
+{
+  int16_t x = 0;
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.setCursor(x, y);
+  display.getTextBounds(str, x, y, &x1, &y1, &w, &h);
+
+  switch (alignment)
+  {
+  case RIGHT_ALIGNMENT:
+    display.setCursor(display.width() - w - x1, y);
+    break;
+  case LEFT_ALIGNMENT:
+    display.setCursor(0, y);
+    break;
+  case CENTER_ALIGNMENT:
+    display.setCursor(display.width() / 2 - ((w + x1) / 2), y);
+    break;
+  default:
+    break;
+  }
+  display.println(str);
+}
+
+void getTimeFromNTP()
+{
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return;
+  }
+
+  Date[2] = (timeinfo.tm_year - 100) / 10 % 10 + '0';
+  Date[3] = (timeinfo.tm_year - 100) % 10 + '0';
+  Date[5] = (timeinfo.tm_mon + 1) / 10 % 10 + '0';
+  Date[6] = (timeinfo.tm_mon + 1) % 10 + '0';
+  Date[8] = timeinfo.tm_mday / 10 % 10 + '0';
+  Date[9] = timeinfo.tm_mday % 10 + '0';
+
+  Time[0] = timeinfo.tm_hour / 10 % 10 + '0';
+  Time[1] = timeinfo.tm_hour % 10 + '0';
+  Time[3] = timeinfo.tm_min / 10 % 10 + '0';
+  Time[4] = timeinfo.tm_min % 10 + '0';
+  Time[6] = timeinfo.tm_sec / 10 % 10 + '0';
+  Time[7] = timeinfo.tm_sec % 10 + '0';
+
+  Serial.println(Date);
+  Serial.println(Time);
+  Serial.println(" ");
+}
+
+
+
+void setup()
+{
+   //Serial.begin(Baud Rate, Data Protocol, Txd pin, Rxd pin);
+  //Serial.begin(9600);
+  Serial.begin(115200);                                             // Define and start serial monitor
+  Receiver.begin(115200, SERIAL_8N1, Receiver_Txd_pin, Receiver_Rxd_pin); // Define and start Receiver serial port
+
+  //Receiver.begin(115200, SERIAL_8N1, Sender_Txd_pin, Sender_Rxd_pin); // Define and start Sender serial port
+  
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println("setup");
+
+  Serial.printf("Connecting to %s ", ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" CONNECTED");
+
+  SPI.begin(SPI_CLK, SPI_MISO, SPI_MOSI, ELINK_SS);
+  display.init(); // enable diagnostic output on Serial
+
+  display.setRotation(1);
+  display.fillScreen(GxEPD_WHITE);
+  display.setTextColor(GxEPD_BLACK);
+  display.setFont(&FreeMonoBold18pt7b);
+  display.setCursor(0, 0);
+
+  sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
+
+  if (!SD.begin(SDCARD_SS, sdSPI)) {
+    sdOK = false;
+  } else {
+    sdOK = true;
+  }
+
+  display.fillScreen(GxEPD_WHITE);
+  display.update();
+}
+
+void loop()
+{
+  while (Receiver.available()) {                         // Wait for the Receiver to get the characters
+    float received_temperature = Receiver.parseFloat(); // Display the Receivers characters
+    //String received_temperature = Receiver.readString();
+     
+   //float received_temperature = Receiver.parseFloat(); // Display the Receivers characters
+    //String received_temperature = Receiver.readString();
+   Serial.println(received_temperature); 
+  //getTimeFromNTP();
+  displayText(String(received_temperature), 60, CENTER_ALIGNMENT);
+  //displayText(String(Time), 90, CENTER_ALIGNMENT);
+  display.updateWindow(22, 30,  222,  90, true);
+  display.drawBitmap(Whiteboard, 22, 31,  208, 60, GxEPD_BLACK);
+  }
+}
+
+/*#include <GxEPD.h>
+#include "SD.h"
+#include "SPI.h"
+
+
+#include <GxGDEH0213B73/GxGDEH0213B73.h>  // 2.13" b/w newer panel
 int bmpWidth = 232, bmpHeight = 52;
-//width:150,height:39
+
 const unsigned char DFRobot[] = {0x00,0x00,0x00,0x7C,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x7E,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -131,19 +318,12 @@ const unsigned char DFRobot[] = {0x00,0x00,0x00,0x7C,0x00,0x00,0x00,0x00,0x00,0x
 
 #define BUTTON_PIN 39
 
-
-GxIO_Class io(SPI, /*CS=5*/ ELINK_SS, /*DC=*/ ELINK_DC, /*RST=*/ ELINK_RESET);
-GxEPD_Class display(io, /*RST=*/ ELINK_RESET, /*BUSY=*/ ELINK_BUSY);
-
-SPIClass sdSPI(VSPI);
+*/
 
 
-const char *Website = "www.dfrobot.com";
-bool sdOK = false;
-int startX = 9, startY = 20;
 
 // Sending/Receiving example
-
+/*
 HardwareSerial Receiver(2); // Define a Serial port instance called 'Receiver' using serial port 2
 
  // Define a Serial port instance called 'Receiver' using serial port 2
@@ -156,36 +336,7 @@ void setup() {
   Receiver.begin(115200, SERIAL_8N1, Receiver_Txd_pin, Receiver_Rxd_pin); // Define and start Receiver serial port
 
   
-  /*display.setRotation(1);
-  display.fillScreen(GxEPD_WHITE);
-  display.setTextColor(GxEPD_BLACK);
-  display.setFont(&FreeMonoBold12pt7b);
-  display.setCursor(0, 0);
-
-  sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
-
-  if (!SD.begin(SDCARD_SS, sdSPI)){
-  sdOK = false;
-  } else {
-  sdOK = true;
-  }
-
-  display.fillScreen(GxEPD_WHITE);
-
-  display.drawBitmap(DFRobot, startX, startY,  bmpWidth, bmpHeight, GxEPD_BLACK);
-
-  display.setCursor(20,95);
-
-  //display.println("Test");
-
-  display.setTextColor(GxEPD_BLACK);
-
-  display.update();
-
-  // goto sleep
-  esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, LOW);
-
-  esp_deep_sleep_start();*/
+ 
 }
 
 void loop() {
@@ -232,4 +383,4 @@ void loop() {
    
   };
   //delay(2000);
-}
+}*/
